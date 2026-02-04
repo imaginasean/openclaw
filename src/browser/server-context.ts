@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { loadConfig } from "../config/config.js";
 import type { ResolvedBrowserProfile } from "./config.js";
 import type { PwAiModule } from "./pw-ai-module.js";
 import type {
@@ -17,7 +18,7 @@ import {
   resolveOpenClawUserDataDir,
   stopOpenClawChrome,
 } from "./chrome.js";
-import { resolveProfile } from "./config.js";
+import { resolveBrowserConfig, resolveProfile } from "./config.js";
 import {
   ensureChromeExtensionRelayServer,
   stopChromeExtensionRelayServer,
@@ -570,7 +571,19 @@ export function createBrowserRouteContext(opts: ContextOptions): BrowserRouteCon
   const forProfile = (profileName?: string): ProfileContext => {
     const current = state();
     const name = profileName ?? current.resolved.defaultProfile;
-    const profile = resolveProfile(current.resolved, name);
+    let profile = resolveProfile(current.resolved, name);
+
+    // Hot-reload: try fresh config if profile not found
+    if (!profile) {
+      const freshCfg = loadConfig();
+      const freshResolved = resolveBrowserConfig(freshCfg.browser, freshCfg);
+      profile = resolveProfile(freshResolved, name);
+      if (profile) {
+        // Merge new profile into cached state
+        current.resolved.profiles[name] = freshResolved.profiles[name];
+      }
+    }
+
     if (!profile) {
       const available = Object.keys(current.resolved.profiles).join(", ");
       throw new Error(`Profile "${name}" not found. Available profiles: ${available || "(none)"}`);
