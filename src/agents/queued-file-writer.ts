@@ -16,7 +16,9 @@ export function getQueuedFileWriter(
   }
 
   const dir = path.dirname(filePath);
-  const ready = fs.mkdir(dir, { recursive: true }).catch(() => undefined);
+  const ready = fs
+    .mkdir(dir, { recursive: true, mode: 0o700 })
+    .catch(() => undefined);
   let queue = Promise.resolve();
 
   const writer: QueuedFileWriter = {
@@ -24,7 +26,7 @@ export function getQueuedFileWriter(
     write: (line: string) => {
       queue = queue
         .then(() => ready)
-        .then(() => fs.appendFile(filePath, line, "utf8"))
+        .then(() => fs.appendFile(filePath, line, { encoding: "utf8", mode: 0o600 }))
         .catch(() => undefined);
     },
   };

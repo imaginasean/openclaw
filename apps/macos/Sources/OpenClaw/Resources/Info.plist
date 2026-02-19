@@ -60,13 +60,24 @@
     <key>NSAppleEventsUsageDescription</key>
     <string>OpenClaw needs Automation (AppleScript) permission to drive Terminal and other apps for agent actions.</string>
 
+    <!-- SEC-021: ATS exceptions documented at docs/reference/ats-exceptions.md -->
     <key>NSAppTransportSecurity</key>
     <dict>
+        <!-- Required for WKWebView to render local gateway control UI served over HTTP -->
         <key>NSAllowsArbitraryLoadsInWebContent</key>
         <true/>
         <key>NSExceptionDomains</key>
         <dict>
+            <!-- Tailscale CGNAT IP for direct tailnet connections without DNS -->
             <key>100.100.100.100</key>
+            <dict>
+                <key>NSExceptionAllowsInsecureHTTPLoads</key>
+                <true/>
+                <key>NSIncludesSubdomains</key>
+                <false/>
+            </dict>
+            <!-- Local network gateway discovery (mDNS / Bonjour) -->
+            <key>openclaw.local</key>
             <dict>
                 <key>NSExceptionAllowsInsecureHTTPLoads</key>
                 <true/>

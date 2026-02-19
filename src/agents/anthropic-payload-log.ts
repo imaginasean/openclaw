@@ -180,6 +180,10 @@ export function createAnthropicPayloadLogger(params: {
     });
   };
 
-  log.info("anthropic payload logger enabled", { filePath: writer.filePath });
+  log.warn(
+    "anthropic payload logger enabled — full request payloads (including user messages) will be written to disk. " +
+      "Only use in secure, non-production environments.",
+    { filePath: writer.filePath },
+  );
   return { enabled: true, wrapStreamFn, recordUsage };
 }

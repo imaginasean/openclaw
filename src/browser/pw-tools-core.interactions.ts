@@ -229,6 +229,11 @@ export async function evaluateViaPlaywright(opts: {
   if (!fnText) {
     throw new Error("function is required");
   }
+  // SEC-007: Validate evaluate input before passing to browser context.
+  const MAX_EVALUATE_LENGTH = 100_000;
+  if (fnText.length > MAX_EVALUATE_LENGTH) {
+    throw new Error(`evaluate function exceeds maximum length (${MAX_EVALUATE_LENGTH} chars)`);
+  }
   const page = await getPageForTargetId(opts);
   ensurePageState(page);
   restoreRoleRefsForTarget({ cdpUrl: opts.cdpUrl, targetId: opts.targetId, page });

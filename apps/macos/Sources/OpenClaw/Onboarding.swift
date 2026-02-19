@@ -83,6 +83,7 @@ struct OnboardingView: View {
     @State var anthropicAuthAutoDetectClipboard = true
     @State var anthropicAuthAutoConnectClipboard = true
     @State var anthropicAuthLastPasteboardChangeCount = NSPasteboard.general.changeCount
+    @State var anthropicAuthOAuthStartTime: Date?
     @State var monitoringAuth = false
     @State var authMonitorTask: Task<Void, Never>?
     @State var needsBootstrap = false

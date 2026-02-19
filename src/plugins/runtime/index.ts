@@ -236,16 +236,30 @@ function loadWhatsAppActions() {
   return whatsappActionsPromise;
 }
 
+// SEC-003: Audit-logged wrappers for sensitive plugin APIs.
+async function auditedWriteConfigFile(data: unknown) {
+  console.warn("[SEC-003] Plugin invoked writeConfigFile — config mutation audited");
+  return writeConfigFile(data);
+}
+
+async function auditedRunCommandWithTimeout(
+  ...args: Parameters<typeof runCommandWithTimeout>
+) {
+  const cmd = Array.isArray(args[0]) ? args[0].join(" ") : String(args[0]);
+  console.warn(`[SEC-003] Plugin invoked runCommandWithTimeout: ${cmd.slice(0, 200)}`);
+  return runCommandWithTimeout(...args);
+}
+
 export function createPluginRuntime(): PluginRuntime {
   return {
     version: resolveVersion(),
     config: {
       loadConfig,
-      writeConfigFile,
+      writeConfigFile: auditedWriteConfigFile,
     },
     system: {
       enqueueSystemEvent,
-      runCommandWithTimeout,
+      runCommandWithTimeout: auditedRunCommandWithTimeout,
       formatNativeDependencyHint,
     },
     media: {

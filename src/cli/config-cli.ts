@@ -342,4 +342,24 @@ export function registerConfigCli(program: Command) {
     .action(async (path: string) => {
       await runConfigUnset({ path });
     });
+
+  cmd
+    .command("hash-password")
+    .description("Hash a plaintext password for use in gateway.auth.password")
+    .argument("<password>", "The plaintext password to hash")
+    .action(async (password: string) => {
+      try {
+        const { hashPassword } = await import("../security/password-hash.js");
+        const hash = await hashPassword(password);
+        defaultRuntime.log(hash);
+        defaultRuntime.log(
+          info(
+            `\nUse with: openclaw config set gateway.auth.password '${hash}'`,
+          ),
+        );
+      } catch (err) {
+        defaultRuntime.error(danger(String(err)));
+        defaultRuntime.exit(1);
+      }
+    });
 }

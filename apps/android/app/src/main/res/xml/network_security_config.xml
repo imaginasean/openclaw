@@ -1,12 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config xmlns:tools="http://schemas.android.com/tools">
-  <!-- This app is primarily used on a trusted tailnet; allow cleartext for IP-based endpoints too. -->
-  <base-config cleartextTrafficPermitted="true" tools:ignore="InsecureBaseConfiguration" />
-  <!-- Allow HTTP for tailnet/local dev endpoints (e.g. canvas/background web). -->
+  <!-- SEC-011: Deny cleartext by default; allow only for trusted local/tailnet endpoints. -->
+  <base-config cleartextTrafficPermitted="false" tools:ignore="InsecureBaseConfiguration" />
   <domain-config cleartextTrafficPermitted="true">
     <domain includeSubdomains="true">openclaw.local</domain>
   </domain-config>
   <domain-config cleartextTrafficPermitted="true">
     <domain includeSubdomains="true">ts.net</domain>
+  </domain-config>
+  <!-- Tailscale CGNAT range (100.64.0.0/10) used for direct IP connections on the tailnet. -->
+  <domain-config cleartextTrafficPermitted="true">
+    <domain>100.100.100.100</domain>
   </domain-config>
 </network-security-config>

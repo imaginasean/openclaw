@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import tls from "node:tls";
 import { WebSocket, type ClientOptions, type CertMeta } from "ws";
 import {
   clearDeviceAuthToken,
@@ -114,8 +115,16 @@ export class GatewayClient {
       maxPayload: 25 * 1024 * 1024,
     };
     if (url.startsWith("wss://") && this.opts.tlsFingerprint) {
+      // SEC-004: Self-signed gateway certs require skipping chain validation,
+      // but we layer hostname verification + SHA-256 fingerprint pinning on top
+      // so the connection is still authenticated by the pinned fingerprint.
       wsOptions.rejectUnauthorized = false;
-      wsOptions.checkServerIdentity = ((_host: string, cert: CertMeta) => {
+      wsOptions.checkServerIdentity = ((host: string, cert: CertMeta) => {
+        // Preserve standard hostname verification even for pinned connections.
+        const hostnameError = tls.checkServerIdentity(host, cert);
+        if (hostnameError) {
+          return hostnameError;
+        }
         const fingerprintValue =
           typeof cert === "object" && cert && "fingerprint256" in cert
             ? ((cert as { fingerprint256?: string }).fingerprint256 ?? "")

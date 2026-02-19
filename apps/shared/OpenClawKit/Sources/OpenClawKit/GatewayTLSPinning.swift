@@ -16,24 +16,71 @@ public struct GatewayTLSParams: Sendable {
     }
 }
 
+// SEC-015: Store TLS fingerprints in the Keychain instead of UserDefaults
+// so they are encrypted at rest and protected by the device's Secure Enclave.
 public enum GatewayTLSStore {
-    private static let suiteName = "ai.openclaw.shared"
-    private static let keyPrefix = "gateway.tls."
+    private static let service = "ai.openclaw.tls"
+    private static let accountPrefix = "gateway.tls."
 
-    private static var defaults: UserDefaults {
-        UserDefaults(suiteName: suiteName) ?? .standard
-    }
+    // Legacy UserDefaults key migration support.
+    private static let legacySuiteName = "ai.openclaw.shared"
+    private static let legacyKeyPrefix = "gateway.tls."
 
     public static func loadFingerprint(stableID: String) -> String? {
-        let key = self.keyPrefix + stableID
-        let raw = self.defaults.string(forKey: key)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if raw?.isEmpty == false { return raw }
+        let account = accountPrefix + stableID
+        if let value = keychainLoad(service: service, account: account) {
+            return value
+        }
+        // Migrate from legacy UserDefaults if present.
+        if let defaults = UserDefaults(suiteName: legacySuiteName),
+           let legacy = defaults.string(forKey: legacyKeyPrefix + stableID)?
+               .trimmingCharacters(in: .whitespacesAndNewlines),
+           !legacy.isEmpty {
+            keychainSave(legacy, service: service, account: account)
+            defaults.removeObject(forKey: legacyKeyPrefix + stableID)
+            return legacy
+        }
         return nil
     }
 
     public static func saveFingerprint(_ value: String, stableID: String) {
-        let key = self.keyPrefix + stableID
-        self.defaults.set(value, forKey: key)
+        let account = accountPrefix + stableID
+        keychainSave(value, service: service, account: account)
+    }
+
+    // MARK: - Keychain helpers
+
+    private static func keychainLoad(service: String, account: String) -> String? {
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+            kSecReturnData as String: true,
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
+        var item: CFTypeRef?
+        guard SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess,
+              let data = item as? Data else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    @discardableResult
+    private static func keychainSave(_ value: String, service: String, account: String) -> Bool {
+        let data = Data(value.utf8)
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: service,
+            kSecAttrAccount as String: account,
+        ]
+        let update: [String: Any] = [kSecValueData as String: data]
+        let status = SecItemUpdate(query as CFDictionary, update as CFDictionary)
+        if status == errSecSuccess { return true }
+        if status != errSecItemNotFound { return false }
+
+        var insert = query
+        insert[kSecValueData as String] = data
+        insert[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        return SecItemAdd(insert as CFDictionary, nil) == errSecSuccess
     }
 }
 

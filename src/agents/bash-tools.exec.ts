@@ -340,7 +340,19 @@ export function createExecTool(
         }
       }
       if (elevatedRequested) {
-        logInfo(`exec: elevated command ${truncateMiddle(params.command, 120)}`);
+        // SEC-006: Audit log for elevated exec — captures full context for forensics.
+        const auditContext = {
+          mode: elevatedMode,
+          provider: defaults?.messageProvider?.trim() ?? "unknown",
+          sessionKey: defaults?.sessionKey?.trim() ?? "unknown",
+          command: params.command,
+        };
+        logInfo(
+          `[AUDIT] elevated exec: mode=${auditContext.mode} ` +
+          `provider=${auditContext.provider} ` +
+          `session=${auditContext.sessionKey} ` +
+          `command=${truncateMiddle(params.command, 200)}`,
+        );
       }
       const configuredHost = defaults?.host ?? "sandbox";
       const requestedHost = normalizeExecHost(params.host) ?? null;

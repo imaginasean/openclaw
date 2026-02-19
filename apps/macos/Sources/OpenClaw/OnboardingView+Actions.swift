@@ -90,6 +90,7 @@ extension OnboardingView {
         do {
             let pkce = try AnthropicOAuth.generatePKCE()
             self.anthropicAuthPKCE = pkce
+            self.anthropicAuthOAuthStartTime = Date()
             let url = AnthropicOAuth.buildAuthorizeURL(pkce: pkce)
             NSWorkspace.shared.open(url)
             self.anthropicAuthStatus = "Browser opened. After approving, paste the `code#state` value here."
@@ -123,20 +124,33 @@ extension OnboardingView {
         }
     }
 
+    // SEC-016: Time-bounded clipboard polling — stops after 5 minutes to limit
+    // exposure to unrelated clipboard content.
+    private static let clipboardPollingTimeoutSeconds: TimeInterval = 300
+
     func pollAnthropicClipboardIfNeeded() {
         guard self.currentPage == self.anthropicAuthPageIndex else { return }
-        guard self.anthropicAuthPKCE != nil else { return }
+        guard let pkce = self.anthropicAuthPKCE else { return }
         guard !self.anthropicAuthBusy else { return }
         guard self.anthropicAuthAutoDetectClipboard else { return }
+
+        // Stop polling after the timeout window.
+        if let start = self.anthropicAuthOAuthStartTime,
+           Date().timeIntervalSince(start) > Self.clipboardPollingTimeoutSeconds {
+            self.anthropicAuthAutoDetectClipboard = false
+            self.anthropicAuthStatus = "Clipboard auto-detect timed out. Paste the code manually."
+            return
+        }
 
         let pb = NSPasteboard.general
         let changeCount = pb.changeCount
         guard changeCount != self.anthropicAuthLastPasteboardChangeCount else { return }
         self.anthropicAuthLastPasteboardChangeCount = changeCount
 
+        // Only read the clipboard if it changed, and only match the expected PKCE state.
         guard let raw = pb.string(forType: .string), !raw.isEmpty else { return }
         guard let parsed = AnthropicOAuthCodeState.parse(from: raw) else { return }
-        guard let pkce = self.anthropicAuthPKCE, parsed.state == pkce.verifier else { return }
+        guard parsed.state == pkce.verifier else { return }
 
         let next = "\(parsed.code)#\(parsed.state)"
         if self.anthropicAuthCode != next {

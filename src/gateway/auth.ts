@@ -5,6 +5,7 @@ import type {
   GatewayTrustedProxyConfig,
 } from "../config/config.js";
 import { readTailscaleWhoisIdentity, type TailscaleWhoisIdentity } from "../infra/tailscale.js";
+import { isHashedPassword, verifyPassword } from "../security/password-hash.js";
 import { safeEqualSecret } from "../security/secret-equal.js";
 import {
   AUTH_RATE_LIMIT_SCOPE_SHARED_SECRET,
@@ -373,7 +374,14 @@ export async function authorizeGatewayConnect(params: {
       limiter?.recordFailure(ip, rateLimitScope);
       return { ok: false, reason: "password_missing" };
     }
-    if (!safeEqualSecret(password, auth.password)) {
+    // SEC-002: Support both scrypt-hashed and legacy plaintext passwords.
+    let passwordMatch: boolean;
+    if (isHashedPassword(auth.password)) {
+      passwordMatch = await verifyPassword(password, auth.password);
+    } else {
+      passwordMatch = safeEqualSecret(password, auth.password);
+    }
+    if (!passwordMatch) {
       limiter?.recordFailure(ip, rateLimitScope);
       return { ok: false, reason: "password_mismatch" };
     }

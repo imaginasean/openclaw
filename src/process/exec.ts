@@ -95,6 +95,38 @@ export type CommandOptions = {
   noOutputTimeoutMs?: number;
 };
 
+// SEC-008: Strip secrets from the parent environment before passing to child processes.
+// Only safe, non-sensitive variables are forwarded. Callers can still pass specific
+// variables via the `env` option, which is merged on top of the sanitized base.
+const SENSITIVE_ENV_PATTERNS = [
+  /^OPENCLAW_/i,
+  /_TOKEN$/i,
+  /_SECRET$/i,
+  /_PASSWORD$/i,
+  /_KEY$/i,
+  /_PASSWD$/i,
+  /^API_KEY$/i,
+  /^AUTH_/i,
+  /^AWS_SECRET/i,
+  /^AWS_SESSION/i,
+  /^GITHUB_TOKEN$/i,
+  /^NPM_TOKEN$/i,
+  /^OPENAI_API/i,
+  /^ANTHROPIC_API/i,
+  /^GOOGLE_API/i,
+  /^AZURE_/i,
+];
+
+function sanitizeParentEnv(parentEnv: NodeJS.ProcessEnv): Record<string, string | undefined> {
+  const result: Record<string, string | undefined> = {};
+  for (const [key, value] of Object.entries(parentEnv)) {
+    if (!SENSITIVE_ENV_PATTERNS.some((pattern) => pattern.test(key))) {
+      result[key] = value;
+    }
+  }
+  return result;
+}
+
 export async function runCommandWithTimeout(
   argv: string[],
   optionsOrTimeout: number | CommandOptions,
@@ -117,7 +149,7 @@ export async function runCommandWithTimeout(
     return false;
   })();
 
-  const mergedEnv = env ? { ...process.env, ...env } : { ...process.env };
+  const mergedEnv = env ? { ...sanitizeParentEnv(process.env), ...env } : { ...sanitizeParentEnv(process.env) };
   const resolvedEnv = Object.fromEntries(
     Object.entries(mergedEnv)
       .filter(([, value]) => value !== undefined)

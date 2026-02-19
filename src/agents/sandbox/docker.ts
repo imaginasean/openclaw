@@ -108,7 +108,7 @@ export function execDockerRaw(
 import { formatCliCommand } from "../../cli/command-format.js";
 import { defaultRuntime } from "../../runtime.js";
 import { computeSandboxConfigHash } from "./config-hash.js";
-import { DEFAULT_SANDBOX_IMAGE, SANDBOX_AGENT_WORKSPACE_MOUNT } from "./constants.js";
+import { DEFAULT_MAX_SANDBOX_CONTAINERS, DEFAULT_SANDBOX_IMAGE, SANDBOX_AGENT_WORKSPACE_MOUNT } from "./constants.js";
 import { readRegistry, updateRegistry } from "./registry.js";
 import { resolveSandboxAgentId, resolveSandboxScopeKey, slugifySessionKey } from "./shared.js";
 import type { SandboxConfig, SandboxDockerConfig, SandboxWorkspaceAccess } from "./types.js";
@@ -391,6 +391,20 @@ export async function ensureSandboxContainer(params: {
   agentWorkspaceDir: string;
   cfg: SandboxConfig;
 }) {
+  // SEC-024: Enforce a cap on concurrent sandbox containers to prevent resource exhaustion.
+  const registry = await readRegistry();
+  if (registry.entries.length >= DEFAULT_MAX_SANDBOX_CONTAINERS) {
+    const existing = registry.entries.find(
+      (e) => e.containerName.startsWith(params.cfg.docker.containerPrefix),
+    );
+    if (!existing) {
+      throw new Error(
+        `Sandbox container limit reached (${DEFAULT_MAX_SANDBOX_CONTAINERS}). ` +
+        "Prune idle containers with `openclaw sandbox prune` before creating new ones.",
+      );
+    }
+  }
+
   const scopeKey = resolveSandboxScopeKey(params.cfg.scope, params.sessionKey);
   const slug = params.cfg.scope === "shared" ? "shared" : slugifySessionKey(scopeKey);
   const name = `${params.cfg.docker.containerPrefix}${slug}`;

@@ -85,6 +85,16 @@ function loadHookFromDir(params: {
     for (const candidate of handlerCandidates) {
       const candidatePath = path.join(params.hookDir, candidate);
       if (fs.existsSync(candidatePath)) {
+        // SEC-009: Resolve symlinks and verify the handler stays within the hook directory.
+        const realPath = fs.realpathSync(candidatePath);
+        const realBase = fs.realpathSync(params.hookDir);
+        const rel = path.relative(realBase, realPath);
+        if (rel.startsWith("..") || path.isAbsolute(rel)) {
+          console.warn(
+            `[hooks] Hook "${name}" handler resolves outside hook directory (symlink escape): ${candidatePath} -> ${realPath}`,
+          );
+          return null;
+        }
         handlerPath = candidatePath;
         break;
       }

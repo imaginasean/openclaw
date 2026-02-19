@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { MANIFEST_KEY } from "../compat/legacy-names.js";
+import { safeJsonParse } from "../infra/json-file.js";
 import { isRecord } from "../utils.js";
 import type { PluginConfigUiHint, PluginKind } from "./types.js";
 
@@ -48,7 +49,7 @@ export function loadPluginManifest(rootDir: string): PluginManifestLoadResult {
   }
   let raw: unknown;
   try {
-    raw = JSON.parse(fs.readFileSync(manifestPath, "utf-8")) as unknown;
+    raw = safeJsonParse(fs.readFileSync(manifestPath, "utf-8"));
   } catch (err) {
     return {
       ok: false,

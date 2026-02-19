@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import { safeJsonParse } from "./json-file.js";
 
 export const DEFAULT_WEBHOOK_MAX_BODY_BYTES = 1024 * 1024;
 export const DEFAULT_WEBHOOK_BODY_TIMEOUT_MS = 30_000;
@@ -203,7 +204,7 @@ export async function readJsonBodyWithLimit(
       return { ok: true, value: {} };
     }
     try {
-      return { ok: true, value: JSON.parse(trimmed) as unknown };
+      return { ok: true, value: safeJsonParse(trimmed) };
     } catch (error) {
       return {
         ok: false,

@@ -2,6 +2,7 @@ import type { IncomingMessage } from "node:http";
 import os from "node:os";
 import type { WebSocket } from "ws";
 import { loadConfig } from "../../../config/config.js";
+import { safeJsonParse } from "../../../infra/json-file.js";
 import {
   deriveDeviceIdFromPublicKey,
   normalizeDevicePublicKeyBase64Url,
@@ -175,7 +176,7 @@ export function attachGatewayWsMessageHandler(params: {
     }
     const text = rawDataToString(data);
     try {
-      const parsed = JSON.parse(text);
+      const parsed = safeJsonParse(text);
       const frameType =
         parsed && typeof parsed === "object" && "type" in parsed
           ? typeof (parsed as { type?: unknown }).type === "string"

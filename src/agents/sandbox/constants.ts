@@ -9,6 +9,8 @@ export const DEFAULT_SANDBOX_CONTAINER_PREFIX = "openclaw-sbx-";
 export const DEFAULT_SANDBOX_WORKDIR = "/workspace";
 export const DEFAULT_SANDBOX_IDLE_HOURS = 24;
 export const DEFAULT_SANDBOX_MAX_AGE_DAYS = 7;
+// SEC-024: Maximum number of concurrent sandbox containers to prevent resource exhaustion.
+export const DEFAULT_MAX_SANDBOX_CONTAINERS = 20;
 
 export const DEFAULT_TOOL_ALLOW = [
   "exec",
